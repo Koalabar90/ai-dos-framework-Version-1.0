@@ -4,7 +4,7 @@ AI-DOS ist ein wiederverwendbares Arbeitsmodell für die KI-gestützte Entwicklu
 
 ## Voraussetzungen und Einrichtung
 
-Benötigt werden ein GitHub-Repository, Git und ein KI-Entwicklungsagent mit Zugriff auf die Projektdateien. Dieses Framework enthält Dokumentvorlagen, Prozesse und eine einfache automatische Dateiprüfung auf GitHub; es installiert keine Anwendung oder zusätzlichen Dienste. Laufzeit, Programmiersprache, Hosting und Lizenz werden pro Projekt entschieden.
+Benötigt werden ein GitHub-Repository, Git und ein KI-Entwicklungsagent mit Zugriff auf die Projektdateien. Dieses Framework enthält Dokumentvorlagen, Prozesse und automatische Qualitätsprüfungen auf GitHub; es installiert keine Anwendung oder zusätzlichen Dienste. Laufzeit, Programmiersprache, Hosting und Lizenz werden pro Projekt entschieden.
 
 1. Framework-Dateien in ein neues GitHub-Repository übernehmen. Vorhandene Dateien vorher vergleichen; niemals ungeprüft überschreiben.
 2. Inhalte aus [project-template/](project-template/README.md) in die Wurzel des neuen Projekts kopieren. Die hier vorhandenen `AGENTS.md`, Rollen, Vorlagen, Workflows und GitHub-Vorlagen beibehalten.
@@ -40,6 +40,8 @@ Fachliche Freigabe, Merge-Freigabe und Produktionsfreigabe sind getrennte Entsch
 
 Vor dem ersten Softwareprojekt: Produktziel, Nutzergruppe, Daten und Schutzbedarf, Budget, Technologie, Hosting und Lizenz festlegen. Vor dem ersten Release: Versionsschema, Zielumgebung, Verantwortliche und Rückkehr zum vorherigen Stand abstimmen. Das Framework legt diese Entscheidungen bewusst nicht pauschal fest.
 
-## Automatische Dateiprüfung
+## Automatische Qualitätsprüfungen
 
-Bei Pull Requests prüft „AI-DOS Framework Check“, ob `README.md` und `AGENTS.md` im Hauptverzeichnis vorhanden sind. Fehlende Dateien werden verständlich benannt. Die Prüfung hat nur Leserechte und benötigt keine eigenen Zugangsdaten. Sobald die Workflow-Datei im Standardbranch liegt, lässt sie sich außerdem unter **Actions → AI-DOS Framework Check → Run workflow** manuell starten. Die Prüfung bestätigt nur das Vorhandensein der beiden Dateien; die inhaltliche Prüfung bleibt Teil des Reviews.
+Bei Pull Requests gegen `main` prüft „AI-DOS Framework Check“ die Framework-Struktur, das Markdown-Format, interne Dateiverweise, GitHub-Konfigurationen und mögliche Zugangsdaten. Die Prüfung von `README.md` und `AGENTS.md` bleibt erhalten. Unter **Actions → AI-DOS Framework Check → Run workflow** lassen sich dieselben Prüfungen manuell starten, sobald die Workflow-Datei im Standardbranch liegt.
+
+Die Prüfungen dürfen nur lesen und veröffentlichen keine Anwendung. Regeln, genaue Check-Namen, Wartung und Grenzen stehen in der [CI-Dokumentation](docs/ci-quality-checks.md). Erfolgreiche automatische Prüfungen ergänzen das inhaltliche Review und ersetzen keine Freigabe des Product Owners.

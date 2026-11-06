@@ -1,0 +1,14 @@
+{
+  "default": false,
+  "MD001": true,
+  "MD003": { "style": "atx" },
+  "MD009": true,
+  "MD010": true,
+  "MD012": true,
+  "MD018": true,
+  "MD019": true,
+  "MD023": true,
+  "MD047": true,
+  "MD048": { "style": "backtick" },
+  "MD050": { "style": "asterisk" }
+}
