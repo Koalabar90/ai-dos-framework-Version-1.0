@@ -47,6 +47,18 @@ Erster tatsächlicher [GitHub-Durchlauf](https://github.com/Koalabar90/ai-dos-fr
 
 Korrektur: zwei getrennte leere Konfigurationsdateien im temporären Verzeichnis. Der korrigierte, unveränderte Installationsschritt aus dem Workflow wurde anschließend lokal mit Node 22 erfolgreich ausgeführt; 51 Pakete wurden ohne Installationsskripte bereitgestellt. Das ergänzt die 20 Inhalts- und Fehlerfalltests um einen erfolgreichen Test der tatsächlichen Werkzeugbereitstellung. Die nachfolgenden GitHub-Ergebnisse werden im [Pull Request #7](https://github.com/Koalabar90/ai-dos-framework-Version-1.0/pull/7) zum jeweiligen Commit dokumentiert. Ein fehlgeschlagener oder übersprungener Job wird nicht als bestanden gezählt.
 
+Zweiter tatsächlicher [GitHub-Durchlauf](https://github.com/Koalabar90/ai-dos-framework-Version-1.0/actions/runs/42308876650), Commit `62db1904472c4e75bfd375652759808024c52a86`: **alle fünf Jobs vollständig ausgeführt und bestanden**. Insbesondere wurden diesmal sowohl die Markdown-Werkzeuginstallation als auch die eigentliche Formatprüfung erfolgreich ausgeführt.
+
+| GitHub-Check | Zweiter Durchlauf |
+| --- | --- |
+| `CI / Framework structure` | bestanden |
+| `CI / Markdown style` | bestanden |
+| `CI / Markdown links` | bestanden |
+| `CI / GitHub configuration` | bestanden |
+| `CI / Secret scan` | bestanden |
+
+Die anschließende Ergänzung dieses Berichts ändert keine Prüflogik; auch für diesen Dokumentationsstand werden die fünf PR-Prüfungen erneut abgewartet. Der jeweils aktuelle Stand ist im verlinkten Pull Request sichtbar.
+
 ## Grenzen und verbleibende Risiken
 
 - Kein unabhängiger zweiter Prüfer und keine Browser- oder Anwendungstests; das Framework enthält noch keine Anwendung.
