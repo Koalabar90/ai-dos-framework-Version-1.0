@@ -4,7 +4,7 @@ AI-DOS ist ein wiederverwendbares Arbeitsmodell für die KI-gestützte Entwicklu
 
 ## Voraussetzungen und Einrichtung
 
-Benötigt werden ein GitHub-Repository, Git und ein KI-Entwicklungsagent mit Zugriff auf die Projektdateien. Dieses Framework enthält Dokumentvorlagen und Prozesse; es installiert keine Anwendung, CI-Pipeline oder Cloud-Dienste. Laufzeit, Programmiersprache, Hosting und Lizenz werden pro Projekt entschieden.
+Benötigt werden ein GitHub-Repository, Git und ein KI-Entwicklungsagent mit Zugriff auf die Projektdateien. Dieses Framework enthält Dokumentvorlagen, Prozesse und eine einfache automatische Dateiprüfung auf GitHub; es installiert keine Anwendung oder zusätzlichen Dienste. Laufzeit, Programmiersprache, Hosting und Lizenz werden pro Projekt entschieden.
 
 1. Framework-Dateien in ein neues GitHub-Repository übernehmen. Vorhandene Dateien vorher vergleichen; niemals ungeprüft überschreiben.
 2. Inhalte aus [project-template/](project-template/README.md) in die Wurzel des neuen Projekts kopieren. Die hier vorhandenen `AGENTS.md`, Rollen, Vorlagen, Workflows und GitHub-Vorlagen beibehalten.
@@ -39,3 +39,7 @@ Fachliche Freigabe, Merge-Freigabe und Produktionsfreigabe sind getrennte Entsch
 ## Noch zu entscheiden
 
 Vor dem ersten Softwareprojekt: Produktziel, Nutzergruppe, Daten und Schutzbedarf, Budget, Technologie, Hosting und Lizenz festlegen. Vor dem ersten Release: Versionsschema, Zielumgebung, Verantwortliche und Rückkehr zum vorherigen Stand abstimmen. Das Framework legt diese Entscheidungen bewusst nicht pauschal fest.
+
+## Automatische Dateiprüfung
+
+Bei Pull Requests prüft „AI-DOS Framework Check“, ob `README.md` und `AGENTS.md` im Hauptverzeichnis vorhanden sind. Fehlende Dateien werden verständlich benannt. Die Prüfung hat nur Leserechte und benötigt keine eigenen Zugangsdaten. Sobald die Workflow-Datei im Standardbranch liegt, lässt sie sich außerdem unter **Actions → AI-DOS Framework Check → Run workflow** manuell starten. Die Prüfung bestätigt nur das Vorhandensein der beiden Dateien; die inhaltliche Prüfung bleibt Teil des Reviews.
