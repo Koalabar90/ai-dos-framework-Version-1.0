@@ -89,3 +89,11 @@ Die tatsächlichen Durchläufe und kontrollierten Fehlerfälle für Auftrag 005 
 - [PyYAML](https://pyyaml.org/wiki/PyYAMLDocumentation)
 - [actionlint](https://github.com/rhysd/actionlint/tree/v1.7.12/docs)
 - [Gitleaks](https://github.com/gitleaks/gitleaks/tree/v8.30.1)
+
+## Quality Gates – Auftrag 5B
+
+Am 2026-11-07 wurde über die GitHub-API verifiziert: Das Ruleset „AI-DOS Main Protection“ (ID 26732560) ist aktiv und gilt für `refs/heads/main`. Die fünf oben genannten Checks sind dort bereits als verpflichtend hinterlegt und an GitHub Actions gebunden. Das ist eine Aufnahme des Prüfzeitpunkts, keine automatische Überwachung späterer Einstellungsänderungen. Auftrag 5B verändert weder dieses Ruleset noch Repository-Berechtigungen.
+
+Die vorhandenen fünf Jobs und ihre Namen bleiben erhalten. Bei einer fehlgeschlagenen Markdown-Werkzeuginstallation erscheint nun ausdrücklich, dass die eigentliche Formatprüfung nicht ausgeführt wurde. Ein solcher Fehler bedeutet keine erfolgreiche Markdown-Prüfung. Für YAML werden fehlende Pflichtfelder, falsche Feldtypen und doppelte Schlüssel verständlicher benannt. YAML-Quelltext wird dabei nicht ausgegeben; ungewöhnliche Dateinamen werden für GitHub-Fehlermeldungen maskiert.
+
+Die bisherigen Regeln und Einschränkungen gelten weiterhin. Der [Testbericht zu Auftrag 5B](test-reports/auftrag-5b-ci.md) enthält die tatsächlich ausgeführten Prüfungen. Die bereits durchgeführte absichtliche Umbenennung von `AGENTS.md` in [Test-PR #8](https://github.com/Koalabar90/ai-dos-framework-Version-1.0/pull/8) bleibt ein Nachweis der bestehenden Struktur- und Linkprüfung; sie wird in 5B nicht erneut eingebaut.
