@@ -1,0 +1,36 @@
+name: AI-DOS Framework Check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  framework-check:
+    name: Framework-Dateien prüfen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository-Dateien laden
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: README.md und AGENTS.md prüfen
+        shell: bash
+        run: |
+          missing=0
+          for file in README.md AGENTS.md; do
+            if [[ ! -f "$file" ]]; then
+              echo "::error file=$file::Die erforderliche Datei $file fehlt im Hauptverzeichnis. Bitte füge sie hinzu."
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Die Framework-Prüfung ist fehlgeschlagen: Erforderliche Dateien fehlen."
+            exit 1
+          fi
+
+          echo "Die Framework-Prüfung war erfolgreich: README.md und AGENTS.md sind vorhanden."
