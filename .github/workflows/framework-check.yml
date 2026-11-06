@@ -1,36 +1,336 @@
+# Tool pins: update versions and checksums together; review workflow changes before merging.
 name: AI-DOS Framework Check
-
-on:
+'on':
   pull_request:
-  workflow_dispatch:
-
+    branches:
+    - main
+  workflow_dispatch: null
 permissions:
   contents: read
-
+concurrency:
+  group: framework-check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
 jobs:
-  framework-check:
-    name: Framework-Dateien prüfen
+  framework-structure:
+    name: CI / Framework structure
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Repository-Dateien laden
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
+    - name: Repository-Dateien laden (checkout v7.0.1)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Erforderliche Dateien und Ordner prüfen
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        import sys
 
-      - name: README.md und AGENTS.md prüfen
-        shell: bash
-        run: |
-          missing=0
-          for file in README.md AGENTS.md; do
-            if [[ ! -f "$file" ]]; then
-              echo "::error file=$file::Die erforderliche Datei $file fehlt im Hauptverzeichnis. Bitte füge sie hinzu."
-              missing=1
-            fi
-          done
+        files = [
+            'README.md', 'AGENTS.md',
+            'agents/README.md', 'agents/product-analyst.md', 'agents/architect.md',
+            'agents/developer.md', 'agents/qa-reviewer.md', 'agents/release-manager.md',
+            'templates/README.md', 'templates/product-brief.md', 'templates/feature-request.md',
+            'templates/architecture-decision-record.md', 'templates/test-report.md',
+            'templates/release-checklist.md', 'workflows/README.md',
+            'workflows/feature-development.md', 'workflows/bug-fixing.md',
+            'workflows/release-management.md', 'project-template/README.md',
+            'project-template/docs/product-brief.md',
+            '.github/ISSUE_TEMPLATE/feature_request.md', '.github/ISSUE_TEMPLATE/bug_report.md',
+            '.github/ISSUE_TEMPLATE/release_request.md', '.github/pull_request_template.md',
+            '.github/workflows/framework-check.yml', '.github/ci/markdownlint.json',
+            '.github/ci/package.json', '.github/ci/package-lock.json', 'docs/ci-quality-checks.md',
+        ]
+        directories = ['agents', 'templates', 'workflows', 'project-template',
+                       'project-template/docs', '.github/ISSUE_TEMPLATE', '.github/workflows', '.github/ci']
+        errors = 0
+        for name in files + directories:
+            p = Path(name)
+            valid = p.is_file() if name in files else p.is_dir()
+            if not valid or p.is_symlink():
+                print(f'::error file={name}::Erforderliche Framework-Datei oder Ordner fehlt oder ist ein symbolischer Link: {name}')
+                errors += 1
+        print(f'Framework-Struktur: {len(files)} Dateien und {len(directories)} Ordner geprüft; {errors} Fehler.')
+        sys.exit(bool(errors))
+        PY
+  markdown-style:
+    name: CI / Markdown style
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Repository-Dateien laden (checkout v7.0.1)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Node bereitstellen (setup-node v7.1.0)
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      with:
+        node-version: '22'
+        package-manager-cache: false
+    - name: Markdown-Prüfer ohne Installationsskripte bereitstellen
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/markdown-tools"
+        cp .github/ci/package.json .github/ci/package-lock.json "$RUNNER_TEMP/markdown-tools/"
+        cd "$RUNNER_TEMP/markdown-tools"
+        touch "$RUNNER_TEMP/npm-user.conf" "$RUNNER_TEMP/npm-global.conf"
+          npm ci --ignore-scripts --no-audit --no-fund \
+            --userconfig="$RUNNER_TEMP/npm-user.conf" \
+            --globalconfig="$RUNNER_TEMP/npm-global.conf"
+    - name: Dokumentiertes Markdown-Regelwerk prüfen
+      env:
+        MARKDOWN_TOOLS: ${{ runner.temp }}/markdown-tools
+      shell: bash
+      run: |
+        node --input-type=module <<'JS'
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import { pathToFileURL } from 'node:url';
+        import { execFileSync } from 'node:child_process';
 
-          if [[ "$missing" -ne 0 ]]; then
-            echo "Die Framework-Prüfung ist fehlgeschlagen: Erforderliche Dateien fehlen."
-            exit 1
+        const { lint } = await import(pathToFileURL(path.join(process.env.MARKDOWN_TOOLS, 'node_modules/markdownlint/lib/exports-promise.mjs')));
+        const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
+          .split('\0').filter(file => /\.md$/i.test(file));
+        if (!files.length) throw new Error('Keine Markdown-Dateien zum Prüfen gefunden.');
+        const config = JSON.parse(fs.readFileSync('.github/ci/markdownlint.json', 'utf8'));
+        // Only declarative JSON; no repository plugins, imports or inline suppressions.
+        const results = await lint({ files, config, noInlineConfig: true });
+        const escape = value => String(value).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+        let errors = 0;
+        for (const [file, findings] of Object.entries(results)) {
+          for (const finding of findings) {
+            console.log(`::error file=${escape(file).replaceAll(',', '%2C')},line=${finding.lineNumber}::${escape(finding.ruleNames[0] + ': ' + finding.ruleDescription)}`);
+            errors++;
+          }
+        }
+        console.log(`Markdown-Format: ${files.length} Dateien, ${errors} Fehler.`);
+        process.exitCode = errors ? 1 : 0;
+        JS
+  markdown-links:
+    name: CI / Markdown links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Repository-Dateien laden (checkout v7.0.1)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Python bereitstellen (setup-python v7.1.0)
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      with:
+        python-version: '3.12'
+    - name: Prüfwerkzeuge mit festen Versionen und Prüfsummen laden
+      shell: bash
+      run: |
+        cat > "$RUNNER_TEMP/requirements.txt" <<'REQ'
+        markdown-it-py==4.2.0 --hash=sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a
+        mdurl==0.1.2 --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8
+        REQ
+        python -m pip install --isolated --disable-pip-version-check --only-binary=:all: --require-hashes --no-deps -r "$RUNNER_TEMP/requirements.txt"
+    - name: Interne Markdown-Dateiverweise prüfen
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        from urllib.parse import unquote, urlsplit
+        import subprocess
+        import sys
+        from markdown_it import MarkdownIt
+
+        root = Path.cwd().resolve()
+        parser = MarkdownIt('commonmark').enable('table')
+        files = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+        errors = checked = 0
+
+        def escape(text):
+            return str(text).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+        def links(tokens, line=1):
+            for token in tokens:
+                token_line = token.map[0] + 1 if token.map else line
+                if token.type in ('link_open', 'image'):
+                    yield token.attrGet('href') if token.type == 'link_open' else token.attrGet('src'), token_line
+                if token.children:
+                    yield from links(token.children, token_line)
+
+        for name in files:
+            if not name.lower().endswith('.md'):
+                continue
+            source = Path(name)
+            for target, line in links(parser.parse(source.read_text(encoding='utf-8'))):
+                url = urlsplit(target)
+                if url.scheme or url.netloc or not url.path:
+                    continue
+                checked += 1
+                decoded = unquote(url.path)
+                resolved = (root / decoded.lstrip('/') if decoded.startswith('/') else source.parent / decoded).resolve()
+                if not resolved.is_relative_to(root) or not resolved.exists():
+                    print(f'::error file={escape(name).replace(",", "%2C")},line={line}::Interner Dateiverweis hat kein gültiges Ziel im Repository: {escape(target)}')
+                    errors += 1
+        print(f'Interne Markdown-Dateiverweise: {checked} geprüft, {errors} Fehler. Externe URLs und Überschriftenanker werden nicht geprüft.')
+        sys.exit(bool(errors))
+        PY
+  github-configuration:
+    name: CI / GitHub configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Repository-Dateien laden (checkout v7.0.1)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Python bereitstellen (setup-python v7.1.0)
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      with:
+        python-version: '3.12'
+    - name: Prüfwerkzeuge mit festen Versionen und Prüfsummen laden
+      shell: bash
+      run: |
+        cat > "$RUNNER_TEMP/requirements.txt" <<'REQ'
+        PyYAML==6.0.3 --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc
+        REQ
+        python -m pip install --isolated --disable-pip-version-check --only-binary=:all: --require-hashes --no-deps -r "$RUNNER_TEMP/requirements.txt"
+    - name: YAML und Issue-Vorlagen sicher einlesen
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        import re
+        import sys
+        import yaml
+
+        class StrictLoader(yaml.SafeLoader):
+            # Keep GitHub's "on" a string; use YAML 1.2-style booleans.
+            yaml_implicit_resolvers = {
+                key: [(tag, pattern) for tag, pattern in values if tag != 'tag:yaml.org,2002:bool']
+                for key, values in yaml.SafeLoader.yaml_implicit_resolvers.items()
+            }
+
+        StrictLoader.add_implicit_resolver('tag:yaml.org,2002:bool', re.compile(r'^(?:true|false)$', re.I), list('tTfF'))
+
+        def unique_mapping(loader, node, deep=False):
+            mapping = {}
+            for key_node, value_node in node.value:
+                key = loader.construct_object(key_node, deep=deep)
+                if key in mapping:
+                    raise yaml.constructor.ConstructorError(None, None, f'Doppelter YAML-Schlüssel: {key}', key_node.start_mark)
+                mapping[key] = loader.construct_object(value_node, deep=deep)
+            return mapping
+
+        StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+        errors = checked = 0
+        inputs = [(p, p.read_text(encoding='utf-8'), False) for p in sorted(Path('.github').rglob('*'))
+                  if p.suffix.lower() in ('.yaml', '.yml') and p.is_file()]
+        for p in sorted(Path('.github/ISSUE_TEMPLATE').glob('*.md')):
+            text = p.read_text(encoding='utf-8')
+            parts = text.split('---', 2)
+            if not text.startswith('---\n') or len(parts) != 3:
+                print(f'::error file={p}::Issue-Vorlage benötigt einen YAML-Kopf zwischen --- Zeilen.')
+                errors += 1
+            else:
+                inputs.append((p, parts[1], True))
+        for p, text, issue in inputs:
+            checked += 1
+            try:
+                data = yaml.load(text, Loader=StrictLoader)
+                if not isinstance(data, dict):
+                    raise ValueError('GitHub-Konfiguration muss eine YAML-Zuordnung sein.')
+                if issue:
+                    for key in ('name', 'about'):
+                        if not isinstance(data.get(key), str) or not data[key].strip():
+                            raise ValueError(f'Issue-Vorlage benötigt ein ausgefülltes Textfeld: {key}')
+                    for key in ('title', 'labels', 'assignees'):
+                        if key in data and not isinstance(data[key], str):
+                            raise ValueError(f'Issue-Feld {key} muss Text sein.')
+            except (yaml.YAMLError, ValueError, TypeError) as exc:
+                mark = getattr(exc, 'problem_mark', None)
+                line = mark.line + 1 if mark else 1
+                # Avoid echoing entire source lines, which could contain credentials.
+                print(f'::error file={p},line={line}::Ungültige YAML-Syntax oder Struktur ({type(exc).__name__}). Details im betroffenen Feld prüfen.')
+                errors += 1
+        print(f'GitHub-YAML und Issue-Köpfe: {checked} geprüft, {errors} Fehler.')
+        sys.exit(bool(errors))
+        PY
+    - name: Actionlint mit geprüfter Prüfsumme laden
+      shell: bash
+      run: |
+        curl --fail --silent --show-error --location --retry 3 \
+          https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+          --output "$RUNNER_TEMP/actionlint.tar.gz"
+        echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check --strict
+        tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+    - name: GitHub-Workflow-Struktur prüfen
+      shell: bash
+      run: |
+        printf '{}\n' > "$RUNNER_TEMP/actionlint.yaml"
+        "$RUNNER_TEMP/actionlint" -config-file "$RUNNER_TEMP/actionlint.yaml" -shellcheck= -pyflakes= -color
+  secret-scan:
+    name: CI / Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Repository-Dateien laden (checkout v7.0.1)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Gitleaks mit geprüfter Prüfsumme laden
+      shell: bash
+      run: |
+        curl --fail --silent --show-error --location --retry 3 \
+          https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+          --output "$RUNNER_TEMP/gitleaks.tar.gz"
+        echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+        tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+    - name: Arbeitsstand und Historie auf Zugangsdaten prüfen
+      shell: bash
+      run: |
+        printf '[extend]\nuseDefault = true\n' > "$RUNNER_TEMP/gitleaks-default.toml"
+        failed=0
+        for mode in git dir; do
+          report="$RUNNER_TEMP/gitleaks-$mode.json"
+          status=0
+          if [[ "$mode" == git ]]; then
+            "$RUNNER_TEMP/gitleaks" git --log-opts="--all" \
+              --config "$RUNNER_TEMP/gitleaks-default.toml" \
+              --gitleaks-ignore-path /dev/null --ignore-gitleaks-allow \
+              --redact=100 --no-banner --report-format json --report-path "$report" \
+              . > "$RUNNER_TEMP/gitleaks-$mode.log" 2>&1 || status=$?
+          else
+            "$RUNNER_TEMP/gitleaks" dir \
+              --config "$RUNNER_TEMP/gitleaks-default.toml" \
+              --gitleaks-ignore-path /dev/null --ignore-gitleaks-allow \
+              --redact=100 --no-banner --report-format json --report-path "$report" \
+              . > "$RUNNER_TEMP/gitleaks-$mode.log" 2>&1 || status=$?
           fi
+          if [[ "$status" -ne 0 ]]; then
+            failed=1
+            REPORT="$report" SCAN_MODE="$mode" python3 - <<'PY'
+        import json
+        import os
+        from pathlib import Path
 
-          echo "Die Framework-Prüfung war erfolgreich: README.md und AGENTS.md sind vorhanden."
+        def escape(text):
+            return str(text).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+        p = Path(os.environ['REPORT'])
+        findings = json.loads(p.read_text()) if p.exists() else []
+        for finding in findings:
+            file = escape(finding['File']).replace(',', '%2C')
+            line = finding['StartLine']
+            rule = escape(finding['RuleID'])
+            commit = escape(finding.get('Commit', '')[:12])
+            print(f'::error file={file},line={line}::Mögliche Zugangsdaten erkannt ({rule}, Commit {commit or "Arbeitsstand"}). Fundstelle prüfen; keine vertraulichen Inhalte in Kommentare kopieren.')
+        if not findings:
+            print(f'::error::Secret-Prüfprogramm fehlgeschlagen ({os.environ["SCAN_MODE"]}); kein verwertbarer Bericht vorhanden.')
+        PY
+          fi
+        done
+        if [[ "$failed" -ne 0 ]]; then
+          exit 1
+        fi
+        echo 'Secret-Prüfung: Arbeitsstand und gesamte abgerufene Git-Historie ohne Fund.'

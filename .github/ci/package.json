@@ -1,0 +1,9 @@
+{
+  "name": "ai-dos-ci-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Only Markdown linting tools; no application or lifecycle scripts",
+  "dependencies": {
+    "markdownlint": "0.42.0"
+  }
+}
