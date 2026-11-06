@@ -43,7 +43,9 @@ Der Testtreiber fasst die beiden zusammengehörigen Link-Erfolgsprüfungen zu ei
 
 ## GitHub-Durchlauf
 
-Die fünf Jobs werden nach Veröffentlichung des Entwicklungsbranches im Pull Request tatsächlich ausgeführt. Links und Endergebnisse werden nach Abschluss ergänzt. Bis dahin sind lokale Erfolge ausdrücklich kein Nachweis für einen erfolgreichen GitHub-Durchlauf.
+Erster tatsächlicher [GitHub-Durchlauf](https://github.com/Koalabar90/ai-dos-framework-Version-1.0/actions/runs/42308606330), Commit `bd07948`: Struktur, Verweise, GitHub-Konfiguration und Secret-Scan bestanden. Die Markdown-Werkzeuginstallation schlug fehl; die Formatprüfung wurde deshalb übersprungen. Ursache war, dass npm dieselbe Datei `/dev/null` nicht gleichzeitig als Benutzer- und globale Konfiguration laden darf.
+
+Korrektur: zwei getrennte leere Konfigurationsdateien im temporären Verzeichnis. Der korrigierte, unveränderte Installationsschritt aus dem Workflow wurde anschließend lokal mit Node 22 erfolgreich ausgeführt; 51 Pakete wurden ohne Installationsskripte bereitgestellt. Das ergänzt die 20 Inhalts- und Fehlerfalltests um einen erfolgreichen Test der tatsächlichen Werkzeugbereitstellung. Die nachfolgenden GitHub-Ergebnisse werden im [Pull Request #7](https://github.com/Koalabar90/ai-dos-framework-Version-1.0/pull/7) zum jeweiligen Commit dokumentiert. Ein fehlgeschlagener oder übersprungener Job wird nicht als bestanden gezählt.
 
 ## Grenzen und verbleibende Risiken
 

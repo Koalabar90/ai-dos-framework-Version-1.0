@@ -77,7 +77,10 @@ jobs:
         mkdir -p "$RUNNER_TEMP/markdown-tools"
         cp .github/ci/package.json .github/ci/package-lock.json "$RUNNER_TEMP/markdown-tools/"
         cd "$RUNNER_TEMP/markdown-tools"
-        npm ci --ignore-scripts --no-audit --no-fund --userconfig=/dev/null --globalconfig=/dev/null
+        touch "$RUNNER_TEMP/npm-user.conf" "$RUNNER_TEMP/npm-global.conf"
+          npm ci --ignore-scripts --no-audit --no-fund \
+            --userconfig="$RUNNER_TEMP/npm-user.conf" \
+            --globalconfig="$RUNNER_TEMP/npm-global.conf"
     - name: Dokumentiertes Markdown-Regelwerk prüfen
       env:
         MARKDOWN_TOOLS: ${{ runner.temp }}/markdown-tools
