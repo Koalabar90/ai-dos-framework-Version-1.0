@@ -78,9 +78,12 @@ jobs:
         cp .github/ci/package.json .github/ci/package-lock.json "$RUNNER_TEMP/markdown-tools/"
         cd "$RUNNER_TEMP/markdown-tools"
         touch "$RUNNER_TEMP/npm-user.conf" "$RUNNER_TEMP/npm-global.conf"
-          npm ci --ignore-scripts --no-audit --no-fund \
-            --userconfig="$RUNNER_TEMP/npm-user.conf" \
-            --globalconfig="$RUNNER_TEMP/npm-global.conf"
+        if ! npm ci --ignore-scripts --no-audit --no-fund \
+          --userconfig="$RUNNER_TEMP/npm-user.conf" \
+          --globalconfig="$RUNNER_TEMP/npm-global.conf"; then
+          echo "::error::Markdown-Prüfer konnte nicht installiert werden. Die Formatprüfung wurde nicht ausgeführt. Bitte die npm-Fehlermeldung in diesem Schritt prüfen."
+          exit 1
+        fi
     - name: Dokumentiertes Markdown-Regelwerk prüfen
       env:
         MARKDOWN_TOOLS: ${{ runner.temp }}/markdown-tools
@@ -203,6 +206,12 @@ jobs:
         import sys
         import yaml
 
+        def escape(text):
+            return str(text).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+        def file_property(path):
+            return escape(path).replace(',', '%2C')
+
         class StrictLoader(yaml.SafeLoader):
             # Keep GitHub's "on" a string; use YAML 1.2-style booleans.
             yaml_implicit_resolvers = {
@@ -229,7 +238,7 @@ jobs:
             text = p.read_text(encoding='utf-8')
             parts = text.split('---', 2)
             if not text.startswith('---\n') or len(parts) != 3:
-                print(f'::error file={p}::Issue-Vorlage benötigt einen YAML-Kopf zwischen --- Zeilen.')
+                print(f'::error file={file_property(p)}::Issue-Vorlage benötigt einen YAML-Kopf zwischen --- Zeilen.')
                 errors += 1
             else:
                 inputs.append((p, parts[1], True))
@@ -250,7 +259,13 @@ jobs:
                 mark = getattr(exc, 'problem_mark', None)
                 line = mark.line + 1 if mark else 1
                 # Avoid echoing entire source lines, which could contain credentials.
-                print(f'::error file={p},line={line}::Ungültige YAML-Syntax oder Struktur ({type(exc).__name__}). Details im betroffenen Feld prüfen.')
+                if isinstance(exc, ValueError):
+                    reason = str(exc)  # Only our fixed schema messages, never YAML source text.
+                elif isinstance(exc, yaml.constructor.ConstructorError):
+                    reason = 'Doppelter YAML-Schlüssel oder nicht unterstützte YAML-Struktur.'
+                else:
+                    reason = 'Ungültige YAML-Syntax oder Struktur. Schreibweise an der angegebenen Zeile prüfen.'
+                print(f'::error file={file_property(p)},line={line}::{escape(reason)}')
                 errors += 1
         print(f'GitHub-YAML und Issue-Köpfe: {checked} geprüft, {errors} Fehler.')
         sys.exit(bool(errors))
